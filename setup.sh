@@ -48,8 +48,7 @@ ConditionPathExistsGlob=${ZIM_DIR}/*.zim
 [Service]
 Type=simple
 EnvironmentFile=/etc/default/kiwix-serve
-# NOTE: kiwix-serve expects one or more .zim files as arguments (not just a directory).
-ExecStart=/bin/sh -lc 'set -e; ls -1 "$ZIM_DIR"/*.zim >/dev/null 2>&1; set -- "$ZIM_DIR"/*.zim; exec /usr/bin/kiwix-serve --port "$KIWIX_PORT" --address 0.0.0.0 "$@"'
+ExecStart=/bin/bash -c 'exec /usr/bin/kiwix-serve --port "\${KIWIX_PORT}" --address 0.0.0.0 \${ZIM_DIR}/*.zim'
 Restart=on-failure
 RestartSec=2
 
@@ -65,7 +64,6 @@ service_is_active() {
 }
 
 zim_present() {
-  # Returns 0 if at least one .zim exists in ZIM_DIR
   compgen -G "${ZIM_DIR}/*.zim" >/dev/null
 }
 
@@ -88,12 +86,9 @@ start_or_restart_kiwix() {
 start_or_restart_kiwix
 
 prompt_yes_no() {
-  # Usage: prompt_yes_no "Question?"
-  # Returns 0 for yes, 1 for no.
   local prompt="$1"
   local answer=""
 
-  # Non-interactive shell: default to "no" to avoid hanging.
   if [[ ! -t 0 ]]; then
     return 1
   fi
