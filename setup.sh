@@ -56,7 +56,34 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now kiwix-serve
+systemctl enable kiwix-serve >/dev/null
+
+service_is_active() {
+  systemctl is-active --quiet kiwix-serve.service
+}
+
+zim_present() {
+  # Returns 0 if at least one .zim exists in ZIM_DIR
+  compgen -G "${ZIM_DIR}/*.zim" >/dev/null
+}
+
+start_or_restart_kiwix() {
+  if ! zim_present; then
+    info "No .zim files found in ${ZIM_DIR}. Not starting kiwix-serve yet."
+    info "Tip: re-run this script and answer 'y' to download a ZIM (or copy your own .zim files)."
+    return 0
+  fi
+
+  if service_is_active; then
+    info "kiwix-serve is already running; restarting it to apply changes..."
+    systemctl restart kiwix-serve.service
+  else
+    info "Starting kiwix-serve..."
+    systemctl start kiwix-serve.service
+  fi
+}
+
+start_or_restart_kiwix
 
 prompt_yes_no() {
   # Usage: prompt_yes_no "Question?"
@@ -138,7 +165,7 @@ fi
 
 if [[ "${downloaded_any}" -eq 1 ]]; then
   info "New ZIM(s) downloaded; restarting kiwix-serve..."
-  systemctl restart kiwix-serve
+  start_or_restart_kiwix
 fi
 
 info "Done."
