@@ -32,13 +32,14 @@ if ! command -v systemctl >/dev/null 2>&1; then
   die "systemctl not found. This script expects a systemd-based OS."
 fi
 
-info "Creating/Updating kiwix-serve systemd service..."
-cat >/etc/default/kiwix-serve <<EOF
+setup_kiwix_systemd_service() {
+  info "Creating/Updating kiwix-serve systemd service..."
+  cat >/etc/default/kiwix-serve <<EOF
 KIWIX_PORT=${KIWIX_PORT}
 ZIM_DIR=${ZIM_DIR}
 EOF
 
-cat >/etc/systemd/system/kiwix-serve.service <<EOF
+  cat >/etc/systemd/system/kiwix-serve.service <<EOF
 [Unit]
 Description=Kiwix offline content server
 After=network-online.target
@@ -54,8 +55,9 @@ ExecStart=/usr/bin/bash -c "/usr/bin/kiwix-serve -p 8080 /srv/kiwix/content/*.zi
 WantedBy=multi-user.target
 EOF
 
-systemctl daemon-reload
-systemctl enable kiwix-serve >/dev/null
+  systemctl daemon-reload
+  systemctl enable kiwix-serve >/dev/null
+}
 
 service_is_active() {
   systemctl is-active --quiet kiwix-serve.service
@@ -80,8 +82,6 @@ start_or_restart_kiwix() {
     systemctl start kiwix-serve.service
   fi
 }
-
-start_or_restart_kiwix
 
 prompt_yes_no() {
   local prompt="$1"
@@ -125,6 +125,10 @@ download_zim() {
   curl -L --fail --continue-at - --output "${path}" "${url}"
   return 2
 }
+
+setup_kiwix_systemd_service
+
+start_or_restart_kiwix
 
 downloaded_any=0
 
