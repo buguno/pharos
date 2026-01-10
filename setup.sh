@@ -48,7 +48,6 @@ ConditionPathExistsGlob=${ZIM_DIR}/*.zim
 [Service]
 Restart=always
 RestartSec=15
-User=kiwix
 ExecStart=/usr/bin/bash -c "/usr/bin/kiwix-serve -p 8080 /srv/kiwix/content/*.zim"
 
 [Install]
