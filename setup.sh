@@ -48,7 +48,7 @@ ConditionPathExistsGlob=${ZIM_DIR}/*.zim
 [Service]
 Type=simple
 EnvironmentFile=/etc/default/kiwix-serve
-ExecStart=/bin/bash -c 'exec /usr/bin/kiwix-serve --port "\${KIWIX_PORT}" --address 0.0.0.0 \${ZIM_DIR}/*.zim'
+ExecStart=/bin/sh -c 'set -- "\$ZIM_DIR"/*.zim; exec /usr/bin/kiwix-serve --port "\$KIWIX_PORT" --address 0.0.0.0 "\$@"'
 Restart=on-failure
 RestartSec=2
 
