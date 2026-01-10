@@ -38,6 +38,30 @@ KIWIX_PORT=${KIWIX_PORT}
 ZIM_DIR=${ZIM_DIR}
 EOF
 
+# Create a wrapper script that handles glob expansion and validation
+cat >/usr/local/bin/kiwix-serve-wrapper.sh <<'WRAPPER_EOF'
+#!/bin/sh
+set -e
+. /etc/default/kiwix-serve
+
+if [ -z "$ZIM_DIR" ] || [ -z "$KIWIX_PORT" ]; then
+  echo "ERROR: ZIM_DIR or KIWIX_PORT not set in /etc/default/kiwix-serve" >&2
+  exit 1
+fi
+
+# Expand glob and check if any .zim files exist
+set -- "$ZIM_DIR"/*.zim
+if [ ! -f "$1" ]; then
+  echo "ERROR: No .zim files found in $ZIM_DIR" >&2
+  exit 1
+fi
+
+# Run kiwix-serve with all .zim files
+exec /usr/bin/kiwix-serve --port "$KIWIX_PORT" --address 0.0.0.0 "$@"
+WRAPPER_EOF
+
+chmod +x /usr/local/bin/kiwix-serve-wrapper.sh
+
 cat >/etc/systemd/system/kiwix-serve.service <<EOF
 [Unit]
 Description=Kiwix offline content server
@@ -47,10 +71,11 @@ ConditionPathExistsGlob=${ZIM_DIR}/*.zim
 
 [Service]
 Type=simple
-EnvironmentFile=/etc/default/kiwix-serve
-ExecStart=/bin/sh -c 'set -- "\$ZIM_DIR"/*.zim; exec /usr/bin/kiwix-serve --port "\$KIWIX_PORT" --address 0.0.0.0 "\$@"'
+ExecStart=/usr/local/bin/kiwix-serve-wrapper.sh
 Restart=on-failure
 RestartSec=2
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
