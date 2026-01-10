@@ -49,7 +49,7 @@ ConditionPathExistsGlob=${ZIM_DIR}/*.zim
 [Service]
 Restart=always
 RestartSec=15
-ExecStart=/usr/bin/bash -c "/usr/bin/kiwix-serve -p ${KIWIX_PORT} ${ZIM_DIR}*.zim"
+ExecStart=/usr/bin/bash -c "/usr/bin/kiwix-serve -p ${KIWIX_PORT} ${ZIM_DIR}/*.zim"
 
 [Install]
 WantedBy=multi-user.target
