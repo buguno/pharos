@@ -47,7 +47,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/etc/default/kiwix-serve
-ExecStart=/usr/bin/kiwix-serve --port ${KIWIX_PORT} --address 0.0.0.0 ${ZIM_DIR}
+ExecStart=/bin/sh -lc '/usr/bin/kiwix-serve --port "$KIWIX_PORT" --address 0.0.0.0 "$ZIM_DIR"'
 Restart=on-failure
 RestartSec=2
 
