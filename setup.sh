@@ -38,16 +38,17 @@ KIWIX_PORT=${KIWIX_PORT}
 ZIM_DIR=${ZIM_DIR}
 EOF
 
-cat >/etc/systemd/system/kiwix-serve.service <<'EOF'
+cat >/etc/systemd/system/kiwix-serve.service <<EOF
 [Unit]
 Description=Kiwix offline content server
 After=network-online.target
 Wants=network-online.target
+ConditionPathExistsGlob=${ZIM_DIR}/*.zim
 
 [Service]
 Type=simple
 EnvironmentFile=/etc/default/kiwix-serve
-ExecStart=/bin/sh -lc '/usr/bin/kiwix-serve --port "$KIWIX_PORT" --address 0.0.0.0 "$ZIM_DIR"'
+ExecStart=/bin/sh -lc '/usr/bin/kiwix-serve --port "\$KIWIX_PORT" --address 0.0.0.0 "\$ZIM_DIR"'
 Restart=on-failure
 RestartSec=2
 
@@ -169,4 +170,8 @@ if [[ "${downloaded_any}" -eq 1 ]]; then
 fi
 
 info "Done."
-info "Kiwix is running on port ${KIWIX_PORT} (serving ZIMs from ${ZIM_DIR})."
+if zim_present && service_is_active; then
+  info "Kiwix is running on port ${KIWIX_PORT} (serving ZIMs from ${ZIM_DIR})."
+else
+  info "Kiwix is not running yet (it requires at least one .zim in ${ZIM_DIR})."
+fi
