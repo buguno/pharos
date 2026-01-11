@@ -126,6 +126,11 @@ download_zim() {
   return 2
 }
 
+raspap_installed() {
+  # Check if RaspAP is installed by looking for common RaspAP files/directories
+  [[ -d "/etc/raspap" ]] || [[ -f "/etc/hostapd/hostapd.conf" ]] || systemctl list-unit-files | grep -q raspap
+}
+
 configure_raspap_ssid() {
   local ssid="Pharos"
   local hostapd_conf="/etc/hostapd/hostapd.conf"
@@ -258,15 +263,30 @@ if [[ "${downloaded_any}" -eq 1 ]]; then
   start_or_restart_kiwix
 fi
 
-info "Installing RaspAP (wireless router software)..."
-curl -sL https://install.raspap.com | bash
+if prompt_yes_no "Do you want to install RaspAP (wireless router software)?"; then
+  info "Installing RaspAP (wireless router software)..."
+  curl -sL https://install.raspap.com | bash
 
-configure_raspap_ssid
+  configure_raspap_ssid
 
-if zim_present && service_is_active; then
-  info "Kiwix is running on port ${KIWIX_PORT} (serving ZIMs from ${ZIM_DIR})."
+  if zim_present && service_is_active; then
+    info "Kiwix is running on port ${KIWIX_PORT} (serving ZIMs from ${ZIM_DIR})."
+  else
+    info "Kiwix is not running yet (it requires at least one .zim in ${ZIM_DIR})."
+  fi
+
+  enable_raspap_ap_mode
 else
-  info "Kiwix is not running yet (it requires at least one .zim in ${ZIM_DIR})."
-fi
+  info "Skipping RaspAP installation."
+  if raspap_installed; then
+    info "RaspAP is already installed. Configuring and enabling AP mode..."
+    configure_raspap_ssid
+    enable_raspap_ap_mode
+  fi
 
-enable_raspap_ap_mode
+  if zim_present && service_is_active; then
+    info "Kiwix is running on port ${KIWIX_PORT} (serving ZIMs from ${ZIM_DIR})."
+  else
+    info "Kiwix is not running yet (it requires at least one .zim in ${ZIM_DIR})."
+  fi
+fi
