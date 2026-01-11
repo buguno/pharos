@@ -126,6 +126,77 @@ download_zim() {
   return 2
 }
 
+configure_raspap_ssid() {
+  local ssid="Pharos"
+  local hostapd_conf="/etc/hostapd/hostapd.conf"
+
+  if [[ ! -f "${hostapd_conf}" ]]; then
+    info "hostapd.conf not found. RaspAP may use a different configuration location."
+    return 0
+  fi
+
+  info "Configuring RaspAP SSID to: ${ssid}..."
+  if grep -q "^ssid=" "${hostapd_conf}"; then
+    sed -i "s/^ssid=.*/ssid=${ssid}/" "${hostapd_conf}"
+  else
+    echo "ssid=${ssid}" >> "${hostapd_conf}"
+  fi
+
+  info "SSID configured."
+}
+
+enable_raspap_ap_mode() {
+  info "Enabling RaspAP Access Point mode..."
+  info "WARNING: This will disconnect Wi-Fi client mode and may disconnect your SSH session."
+
+  # Get SSID and password from hostapd.conf if available (before restarting)
+  local hostapd_conf="/etc/hostapd/hostapd.conf"
+  local ssid="Pharos"
+  local wifi_password=""
+
+  if [[ -f "${hostapd_conf}" ]]; then
+    if grep -q "^ssid=" "${hostapd_conf}"; then
+      ssid=$(grep "^ssid=" "${hostapd_conf}" | cut -d= -f2 | tr -d '"')
+    fi
+    if grep -q "^wpa_passphrase=" "${hostapd_conf}"; then
+      wifi_password=$(grep "^wpa_passphrase=" "${hostapd_conf}" | cut -d= -f2 | tr -d '"')
+    fi
+  fi
+
+  # Show connection information BEFORE starting AP mode
+  info ""
+  info "=== RaspAP Connection Information ==="
+  info "Web Interface:"
+  info "  URL: http://10.3.141.1"
+  info "  Username: admin"
+  info "  Password: secret"
+  info ""
+  info "Wi-Fi Hotspot:"
+  info "  SSID: ${ssid}"
+  if [[ -n "${wifi_password}" ]]; then
+    info "  Password: ${wifi_password}"
+  else
+    info "  Password: (configured in RaspAP settings)"
+  fi
+  info ""
+  info "Your SSH session will be disconnected as the Pi switches to AP mode."
+  info "Connect to the '${ssid}' hotspot to access RaspAP web interface and Kiwix."
+  info ""
+
+  # Enable and start hostapd service
+  if systemctl is-enabled hostapd >/dev/null 2>&1; then
+    info "hostapd service already enabled."
+  else
+    systemctl enable hostapd >/dev/null 2>&1 || true
+    info "hostapd service enabled."
+  fi
+
+  # Start/restart hostapd (this will activate AP mode and disconnect Wi-Fi client)
+  systemctl restart hostapd >/dev/null 2>&1 || systemctl start hostapd >/dev/null 2>&1 || true
+
+  info "Access Point mode enabled!"
+}
+
 setup_kiwix_systemd_service
 
 start_or_restart_kiwix
@@ -167,9 +238,15 @@ if [[ "${downloaded_any}" -eq 1 ]]; then
   start_or_restart_kiwix
 fi
 
-info "Done."
+info "Installing RaspAP (wireless router software)..."
+curl -sL https://install.raspap.com | bash
+
+configure_raspap_ssid
+
 if zim_present && service_is_active; then
   info "Kiwix is running on port ${KIWIX_PORT} (serving ZIMs from ${ZIM_DIR})."
 else
   info "Kiwix is not running yet (it requires at least one .zim in ${ZIM_DIR})."
 fi
+
+enable_raspap_ap_mode
