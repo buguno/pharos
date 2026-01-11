@@ -183,6 +183,11 @@ enable_raspap_ap_mode() {
   info "Connect to the '${ssid}' hotspot to access RaspAP web interface and Kiwix."
   info ""
 
+  # Stop wpa_supplicant (Wi-Fi client mode) to free up the interface
+  info "Stopping Wi-Fi client mode (wpa_supplicant)..."
+  systemctl stop wpa_supplicant >/dev/null 2>&1 || true
+  systemctl disable wpa_supplicant >/dev/null 2>&1 || true
+
   # Enable and start hostapd service
   if systemctl is-enabled hostapd >/dev/null 2>&1; then
     info "hostapd service already enabled."
@@ -191,10 +196,25 @@ enable_raspap_ap_mode() {
     info "hostapd service enabled."
   fi
 
-  # Start/restart hostapd (this will activate AP mode and disconnect Wi-Fi client)
+  # Restart network services that RaspAP depends on
+  info "Restarting network services..."
+  systemctl restart dhcpcd >/dev/null 2>&1 || true
+  systemctl restart dnsmasq >/dev/null 2>&1 || true
+
+  # Start/restart hostapd (this will activate AP mode)
+  info "Starting hostapd service..."
   systemctl restart hostapd >/dev/null 2>&1 || systemctl start hostapd >/dev/null 2>&1 || true
 
-  info "Access Point mode enabled!"
+  # Give it a moment to start
+  sleep 2
+
+  # Check if hostapd is running
+  if systemctl is-active --quiet hostapd; then
+    info "Access Point mode enabled successfully!"
+  else
+    info "Warning: hostapd may not have started correctly. Check logs with: sudo journalctl -u hostapd"
+    info "You may need to configure the AP through the RaspAP web interface at http://10.3.141.1"
+  fi
 }
 
 setup_kiwix_systemd_service
